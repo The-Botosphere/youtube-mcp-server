@@ -26,13 +26,13 @@ const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
 
 /* ============================================================
-   📦 MCP MANIFEST
+   📦 MCP TOOLS (correct camelCase schema)
    ============================================================ */
 const tools = [
   {
     name: "youtube_search",
     description: "Search YouTube for videos.",
-    input_schema: {
+    inputSchema: {
       type: "object",
       properties: {
         query: { type: "string" },
@@ -44,7 +44,7 @@ const tools = [
   {
     name: "youtube_get_video",
     description: "Retrieve details for a YouTube video ID.",
-    input_schema: {
+    inputSchema: {
       type: "object",
       properties: {
         videoId: { type: "string" }
@@ -76,7 +76,7 @@ app.use((req, res, next) => {
 app.post("/mcp", async (req, res) => {
   const { id, jsonrpc, method, params } = req.body;
 
-  if (jsonrpc !== "2.0" || !id) {
+  if (jsonrpc !== "2.0" || typeof id === "undefined") {
     return res.json({
       jsonrpc: "2.0",
       id: id || null,
@@ -84,7 +84,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  // 🔧 PMG calling: tools/list
+  /* ----------------------------------------------
+     📌 tools/list
+     ---------------------------------------------- */
   if (method === "tools/list") {
     return res.json({
       jsonrpc: "2.0",
@@ -93,7 +95,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  // 🔧 PMG calling: tools/call
+  /* ----------------------------------------------
+     📌 tools/call
+     ---------------------------------------------- */
   if (method === "tools/call") {
     const { name, arguments: args } = params;
 
@@ -114,7 +118,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  // unknown method
+  /* ----------------------------------------------
+     ❌ Unknown method
+     ---------------------------------------------- */
   return res.json({
     jsonrpc: "2.0",
     id,

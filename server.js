@@ -8,7 +8,9 @@ app.use(express.json());
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
 
-// Shared manifest object
+// -------------------------------------------------------
+// MASTER MANIFEST OBJECT
+// -------------------------------------------------------
 const manifest = {
   version: "1.0.0",
   tools: [
@@ -39,7 +41,7 @@ const manifest = {
 };
 
 // -------------------------------------------------------
-// AUTH MIDDLEWARE — SKIP MANIFEST ROUTES
+// AUTH MIDDLEWARE — SKIP ALL MCP MANIFEST ROUTES
 // -------------------------------------------------------
 app.use((req, res, next) => {
   const openPaths = [
@@ -47,6 +49,7 @@ app.use((req, res, next) => {
     "/manifest",
     "/mcp",
     "/mcp/",
+    "/mcp/manifest",
     "/mcp/manifest.json"
   ];
 
@@ -54,6 +57,7 @@ app.use((req, res, next) => {
     return next();
   }
 
+  // All other routes require Bearer token
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${AUTH_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -63,31 +67,30 @@ app.use((req, res, next) => {
 });
 
 // -------------------------------------------------------
-// MANIFEST ROUTES (PMG COMPATIBILITY)
+// MCP MANIFEST ROUTES (PMG REQUIRES /mcp ENDPOINT)
 // -------------------------------------------------------
-
-// Default manifest endpoint
-app.get("/manifest.json", (req, res) => {
-  res.json(manifest);
-});
-
-// Fallback plain /manifest
-app.get("/manifest", (req, res) => {
-  res.json(manifest);
-});
-
-// PMG-style manifest
 app.get("/mcp/manifest.json", (req, res) => {
   res.json(manifest);
 });
 
-// PMG discovery fallback route
+app.get("/mcp/manifest", (req, res) => {
+  res.json(manifest);
+});
+
+app.get("/mcp/", (req, res) => {
+  res.json(manifest);
+});
+
 app.get("/mcp", (req, res) => {
   res.json(manifest);
 });
 
-// Another fallback (some MCP clients try /mcp/)
-app.get("/mcp/", (req, res) => {
+// Browser-friendly routes (optional but useful)
+app.get("/manifest.json", (req, res) => {
+  res.json(manifest);
+});
+
+app.get("/manifest", (req, res) => {
   res.json(manifest);
 });
 
@@ -115,7 +118,7 @@ app.post("/youtube/search", async (req, res) => {
 });
 
 // -------------------------------------------------------
-// YOUTUBE GET VIDEO INFO TOOL
+// YOUTUBE VIDEO INFO TOOL
 // -------------------------------------------------------
 app.post("/youtube/get", async (req, res) => {
   const { videoId } = req.body;
@@ -137,7 +140,15 @@ app.post("/youtube/get", async (req, res) => {
 });
 
 // -------------------------------------------------------
-// SERVER START
+// CATCH-ALL FALLBACK — return manifest for any GET path
+// (fixes PMG discovery oddities)
+// -------------------------------------------------------
+app.get("*", (req, res) => {
+  res.json(manifest);
+});
+
+// -------------------------------------------------------
+// START SERVER
 // -------------------------------------------------------
 app.listen(3000, () => {
   console.log("YouTube MCP server running on port 3000");

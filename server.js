@@ -34,34 +34,30 @@ app.use((req, res, next) => {
 /* ============================================================
    🔑 ENV VARS
    ============================================================ */
-const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
+const VIDEO_SEARCH_API = process.env.VIDEO_SEARCH_API || "https://bsen-backend-production.up.railway.app/search";
 
 /* ============================================================
-   📦 MCP TOOLS (camelCase required)
+   📦 MCP TOOLS - Boomer Bot Video Search
    ============================================================ */
 const tools = [
   {
-    name: "youtube_search",
-    description: "Search YouTube for videos.",
+    name: "search_ou_videos",
+    description: "Search the Oklahoma Sooners video database for game highlights, player performances, memorable plays, and historic moments. Returns relevant OU sports videos with titles, URLs, and relevance scores.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string" },
-        maxResults: { type: "number" }
+        query: { 
+          type: "string",
+          description: "Search terms for OU videos (e.g., 'Dillon Gabriel touchdown', 'Red River Rivalry', 'championship game')"
+        },
+        limit: { 
+          type: "number",
+          description: "Maximum number of results to return (default: 5)",
+          default: 5
+        }
       },
       required: ["query"]
-    }
-  },
-  {
-    name: "youtube_get_video",
-    description: "Retrieve details for a YouTube video ID.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        videoId: { type: "string" }
-      },
-      required: ["videoId"]
     }
   }
 ];
@@ -69,7 +65,7 @@ const tools = [
 /* ============================================================
    🔓 AUTH MIDDLEWARE — allow JSON-RPC entrypoint
    ============================================================ */
-const openPaths = ["/mcp", "/mcp/", "/manifest.json", "/manifest"];
+const openPaths = ["/mcp", "/mcp/", "/manifest.json", "/manifest", "/health"];
 
 app.use((req, res, next) => {
   if (openPaths.includes(req.path)) return next();
@@ -83,7 +79,7 @@ app.use((req, res, next) => {
 });
 
 /* ============================================================
-   ⭐ JSON-RPC HANDLER (REQUIRED BY OPENAI MCP)
+   ⭐ JSON-RPC HANDLER (REQUIRED BY MCP)
    ============================================================ */
 app.post("/mcp", async (req, res) => {
   const { id, jsonrpc, method, params } = req.body;
@@ -116,7 +112,11 @@ app.post("/mcp", async (req, res) => {
       id,
       result: {
         protocolVersion: "2025-06-18",
-        serverInfo: { name: "youtube-mcp-server", version: "1.0.0" },
+        serverInfo: { 
+          name: "boomer-bot-video-search", 
+          version: "1.0.0",
+          description: "Oklahoma Sooners video database search with 3,915+ videos"
+        },
         capabilities: { tools: {} }
       }
     });
@@ -139,22 +139,27 @@ app.post("/mcp", async (req, res) => {
   if (method === "tools/call") {
     const { name, arguments: args } = params;
 
-    if (name === "youtube_search") {
-      const items = await youtubeSearch(args.query, args.maxResults);
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: { items }
-      });
-    }
-
-    if (name === "youtube_get_video") {
-      const video = await youtubeGetVideo(args.videoId);
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: { video }
-      });
+    if (name === "search_ou_videos") {
+      try {
+        const videos = await searchOUVideos(args.query, args.limit || 5);
+        return res.json({
+          jsonrpc: "2.0",
+          id,
+          result: { 
+            content: [{
+              type: "text",
+              text: formatVideoResults(videos, args.query)
+            }]
+          }
+        });
+      } catch (error) {
+        console.error("Error searching videos:", error);
+        return res.json({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32000, message: `Search failed: ${error.message}` }
+        });
+      }
     }
 
     return res.json({
@@ -175,41 +180,79 @@ app.post("/mcp", async (req, res) => {
 });
 
 /* ============================================================
-   🔧 TOOL FUNCTIONS
+   🔧 VIDEO SEARCH FUNCTION
    ============================================================ */
-async function youtubeSearch(query, maxResults = 10) {
-  const url =
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video` +
-    `&maxResults=${maxResults}&q=${encodeURIComponent(query)}` +
-    `&key=${API_KEY}`;
-
+async function searchOUVideos(query, limit = 5) {
+  const url = `${VIDEO_SEARCH_API}?q=${encodeURIComponent(query)}`;
+  
+  console.log("🔍 Searching videos:", url);
+  
   const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
+  }
+  
   const data = await response.json();
-  return data.items || [];
-}
-
-async function youtubeGetVideo(videoId) {
-  const url =
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,player` +
-    `&id=${videoId}&key=${API_KEY}`;
-
-  const response = await fetch(url);
-  const data = await response.json();
-  return data.items?.[0] || null;
+  
+  // Return top N results
+  return data.slice(0, limit);
 }
 
 /* ============================================================
-   🌐 GET manifest for browser/debugging
+   📝 FORMAT RESULTS FOR DISPLAY
    ============================================================ */
-app.get("/manifest.json", (req, res) => res.json({ tools }));
+function formatVideoResults(videos, query) {
+  if (!videos || videos.length === 0) {
+    return `No Oklahoma Sooners videos found for "${query}". Try different search terms like player names, game opponents, or types of plays.`;
+  }
+
+  let result = `Found ${videos.length} Oklahoma Sooners video${videos.length > 1 ? 's' : ''} for "${query}":\n\n`;
+  
+  videos.forEach((video, index) => {
+    const relevance = video.similarity ? Math.round(video.similarity * 100) : 'N/A';
+    result += `${index + 1}. **${video.title}**\n`;
+    result += `   📺 ${video.url}\n`;
+    if (video.channel_title) {
+      result += `   📹 Channel: ${video.channel_title}\n`;
+    }
+    result += `   🎯 Relevance: ${relevance}%\n\n`;
+  });
+  
+  return result;
+}
+
+/* ============================================================
+   🌐 HEALTH CHECK & MANIFEST
+   ============================================================ */
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    service: "boomer-bot-video-search-mcp",
+    videos: "3915+",
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/manifest.json", (req, res) => res.json({ 
+  name: "Boomer Bot Video Search",
+  tools 
+}));
+
 app.get("/mcp", (req, res) =>
-  res.json({ note: "Use POST /mcp with JSON-RPC 2.0" })
+  res.json({ 
+    note: "Use POST /mcp with JSON-RPC 2.0",
+    service: "Oklahoma Sooners Video Search MCP Server"
+  })
 );
 
 /* ============================================================
    🚀 START SERVER
    ============================================================ */
-app.listen(3000, () => {
-  console.log("🚀 MCP JSON-RPC YouTube Server running on port 3000");
-});
+const PORT = process.env.PORT || 3000;
 
+app.listen(PORT, () => {
+  console.log(`🚀 Boomer Bot MCP Server running on port ${PORT}`);
+  console.log(`📹 Video Search API: ${VIDEO_SEARCH_API}`);
+  console.log(`🔐 Auth: ${AUTH_SECRET ? 'Configured' : 'NOT SET - WARNING!'}`);
+});

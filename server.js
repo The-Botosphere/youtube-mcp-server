@@ -162,6 +162,18 @@ app.post("/mcp", async (req, res) => {
 const port = process.env.PORT || 8080;
 app.listen(port, () =>
   console.log(`🚀 YouTube MCP listening on ${port}`)
+
+           // --- Keep-alive internal ping (Railway safe) ---
+setInterval(() => {
+  try {
+    fetch(`http://localhost:${port}/health`)
+      .then(() => console.log("⏳ Keep-alive ping"))
+      .catch(err => console.log("⚠ Keep-alive failed:", err.message));
+  } catch (err) {
+    console.log("⚠ Keep-alive exception:", err.message);
+  }
+}, 1000 * 60 * 4); // every 4 minutes
+
 );
 
 

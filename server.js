@@ -1,4 +1,3 @@
-
 // server.js
 import express from "express";
 import "dotenv/config";
@@ -9,7 +8,7 @@ import { tools } from "./tools.js";
 const app = express();
 app.use(express.json());
 
-// Replace with your published Google Sheets CSV URL:
+// ===== ENV VARS =====
 const CSV_URL = process.env.CSV_URL;
 
 // ============ CORS =============
@@ -42,7 +41,7 @@ async function loadVideos() {
     const url = row.url?.trim() || "";
     let youtube_id = "";
 
-    // Extract YouTube ID from full URL
+    // Extract YouTube ID
     if (url.includes("watch?v=")) {
       youtube_id = url.split("watch?v=")[1].split("&")[0];
     } else if (url.includes("youtu.be/")) {
@@ -51,8 +50,7 @@ async function loadVideos() {
 
     const title = row["OU Sooners videos"]?.trim() || "";
     const published_at = row["published date"] || "";
-    
-    // Tags from description (split by space, comma)
+
     const description = row["description"] || "";
     const tags = description
       .toLowerCase()
@@ -91,13 +89,13 @@ async function recentVideos({ limit = 10 }) {
     .slice(0, limit);
 }
 
-// Sports filtering (optional until you add a sport column)
 async function videosBySport({ sport, limit = 10 }) {
   const videos = await loadVideos();
 
-  const results = videos.filter(v => 
-    v.tags.includes(sport.toLowerCase()) ||
-    v.title.toLowerCase().includes(sport.toLowerCase())
+  const s = sport.toLowerCase();
+  const results = videos.filter(v =>
+    v.tags.includes(s) ||
+    v.title.toLowerCase().includes(s)
   );
 
   return results.slice(0, limit);
@@ -163,7 +161,8 @@ app.post("/mcp", async (req, res) => {
     });
   }
 });
-// --- Railway Keep-Alive (guaranteed working) ---
+
+// ===== RAILWAY KEEP-ALIVE (Correct & Guaranteed) =====
 if (process.env.RAILWAY_SERVICE_WEB_URL) {
   setInterval(() => {
     fetch(`${process.env.RAILWAY_SERVICE_WEB_URL}/health`)
@@ -171,19 +170,12 @@ if (process.env.RAILWAY_SERVICE_WEB_URL) {
   }, 45000);
 }
 
-
 // ===== LISTEN =====
 const port = process.env.PORT || 8080;
 
 app.listen(port, () => {
   console.log("MCP YouTube (Sheets MVP) listening on " + port);
 });
-
-  // --- Keep Alive Ping ---
-setInterval(() => {
-  fetch(`https://${process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN}/health`)
-    .catch(() => {});
-}, 60000);
 
 
 

@@ -1,5 +1,5 @@
 import express from "express";
-import fetch from "node-fetch";
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 app.use(express.json());
@@ -32,10 +32,16 @@ app.use((req, res, next) => {
 });
 
 /* ============================================================
-   🔑 ENV VARS
+   🔑 ENV VARS & SUPABASE CLIENT
    ============================================================ */
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
-const VIDEO_SEARCH_API = process.env.VIDEO_SEARCH_API || "https://bsen-backend-production.up.railway.app/search";
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+console.log("🔧 Supabase configured:", SUPABASE_URL ? "✅" : "❌ MISSING!");
 
 /* ============================================================
    📦 MCP TOOLS - Boomer Bot Video Search
@@ -43,27 +49,69 @@ const VIDEO_SEARCH_API = process.env.VIDEO_SEARCH_API || "https://bsen-backend-p
 const tools = [
   {
     name: "search_ou_videos",
-    description: "Search the Oklahoma Sooners video database for game highlights, player performances, memorable plays, and historic moments. Returns relevant OU sports videos with titles, URLs, and relevance scores.",
+    description: "Search the Oklahoma Sooners video database for game highlights, player performances, memorable plays, and historic moments. Searches through 4,627+ curated OU videos.",
     inputSchema: {
       type: "object",
       properties: {
         query: { 
           type: "string",
-          description: "Search terms for OU videos (e.g., 'Dillon Gabriel touchdown', 'Red River Rivalry', 'championship game')"
+          description: "Search terms for OU videos (e.g., 'Dillon Gabriel touchdown', 'Red River Rivalry', 'Baker Mayfield highlights')"
         },
         limit: { 
           type: "number",
-          description: "Maximum number of results to return (default: 3)",
+          description: "Maximum number of results to return (default: 5)",
           default: 5
         }
       },
       required: ["query"]
     }
+  },
+  {
+    name: "get_videos_by_sport",
+    description: "Get Oklahoma Sooners videos filtered by sport (Football, Softball, Basketball, etc.)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sport: {
+          type: "string",
+          description: "Sport name (Football, Softball, Men's Basketball, Women's Basketball, Baseball, Gymnastics, Wrestling, Golf)"
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of results (default: 10)",
+          default: 10
+        }
+      },
+      required: ["sport"]
+    }
+  },
+  {
+    name: "get_recent_videos",
+    description: "Get the most recently published Oklahoma Sooners videos, optionally filtered by sport",
+    inputSchema: {
+      type: "object",
+      properties: {
+        days: {
+          type: "number",
+          description: "Get videos from last N days (default: 30)",
+          default: 30
+        },
+        sport: {
+          type: "string",
+          description: "Optional: filter by sport (Football, Softball, etc.)"
+        },
+        limit: {
+          type: "number",
+          description: "Maximum results (default: 10)",
+          default: 10
+        }
+      }
+    }
   }
 ];
 
 /* ============================================================
-   🔓 AUTH MIDDLEWARE — allow JSON-RPC entrypoint
+   🔓 AUTH MIDDLEWARE
    ============================================================ */
 const openPaths = ["/mcp", "/mcp/", "/manifest.json", "/manifest", "/health"];
 
@@ -84,17 +132,13 @@ app.use((req, res, next) => {
 app.post("/mcp", async (req, res) => {
   const { id, jsonrpc, method, params } = req.body;
 
-  /* ---------------------------------------------------------
-     ⭐⭐ REQUIRED FIX: IGNORE NOTIFICATIONS ⭐⭐
-     --------------------------------------------------------- */
+  /* Ignore notifications */
   if (method && method.startsWith("notifications/")) {
     console.log("🔕 Ignoring notification:", method);
-    return res.status(200).end(); // No JSON response
+    return res.status(200).end();
   }
 
-  /* ---------------------------------------------------------
-     Validate structure (only for requests, not notifications)
-     --------------------------------------------------------- */
+  /* Validate structure */
   if (jsonrpc !== "2.0" || typeof id === "undefined") {
     return res.json({
       jsonrpc: "2.0",
@@ -103,9 +147,7 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  /* ---------------------------------------------------------
-     ⭐ REQUIRED MCP HANDSHAKE
-     --------------------------------------------------------- */
+  /* MCP HANDSHAKE */
   if (method === "initialize") {
     return res.json({
       jsonrpc: "2.0",
@@ -114,17 +156,15 @@ app.post("/mcp", async (req, res) => {
         protocolVersion: "2025-06-18",
         serverInfo: { 
           name: "boomer-bot-video-search", 
-          version: "1.0.0",
-          description: "Oklahoma Sooners video database search with 3,915+ videos"
+          version: "2.0.0",
+          description: "Oklahoma Sooners video database search with 4,627+ curated videos"
         },
         capabilities: { tools: {} }
       }
     });
   }
 
-  /* ---------------------------------------------------------
-     📌 tools/list
-     --------------------------------------------------------- */
+  /* tools/list */
   if (method === "tools/list") {
     return res.json({
       jsonrpc: "2.0",
@@ -133,15 +173,13 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  /* ---------------------------------------------------------
-     📌 tools/call
-     --------------------------------------------------------- */
+  /* tools/call */
   if (method === "tools/call") {
     const { name, arguments: args } = params;
 
-    if (name === "search_ou_videos") {
-      try {
-        const videos = await searchOUVideos(args.query, args.limit || 3);
+    try {
+      if (name === "search_ou_videos") {
+        const videos = await searchOUVideos(args.query, args.limit || 5);
         return res.json({
           jsonrpc: "2.0",
           id,
@@ -152,26 +190,53 @@ app.post("/mcp", async (req, res) => {
             }]
           }
         });
-      } catch (error) {
-        console.error("Error searching videos:", error);
+      }
+
+      if (name === "get_videos_by_sport") {
+        const videos = await getVideosBySport(args.sport, args.limit || 10);
         return res.json({
           jsonrpc: "2.0",
           id,
-          error: { code: -32000, message: `Search failed: ${error.message}` }
+          result: {
+            content: [{
+              type: "text",
+              text: formatVideoResults(videos, `${args.sport} videos`)
+            }]
+          }
         });
       }
-    }
 
-    return res.json({
-      jsonrpc: "2.0",
-      id,
-      error: { code: -32601, message: "Unknown tool" }
-    });
+      if (name === "get_recent_videos") {
+        const videos = await getRecentVideos(args.days || 30, args.sport, args.limit || 10);
+        return res.json({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            content: [{
+              type: "text",
+              text: formatVideoResults(videos, `Recent ${args.sport || 'OU'} videos`)
+            }]
+          }
+        });
+      }
+
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32601, message: "Unknown tool" }
+      });
+
+    } catch (error) {
+      console.error("Error executing tool:", error);
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32000, message: `Tool execution failed: ${error.message}` }
+      });
+    }
   }
 
-  /* ---------------------------------------------------------
-     ❌ Unknown method
-     --------------------------------------------------------- */
+  /* Unknown method */
   return res.json({
     jsonrpc: "2.0",
     id,
@@ -180,23 +245,91 @@ app.post("/mcp", async (req, res) => {
 });
 
 /* ============================================================
-   🔧 VIDEO SEARCH FUNCTION
+   🔧 SUPABASE VIDEO SEARCH FUNCTIONS
    ============================================================ */
+
 async function searchOUVideos(query, limit = 5) {
-  const url = `${VIDEO_SEARCH_API}?q=${encodeURIComponent(query)}`;
+  console.log("🔍 Searching Supabase for:", query);
   
-  console.log("🔍 Searching videos:", url);
-  
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    throw new Error(`API returned ${response.status}`);
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .or(`title.ilike.%${query}%,description.ilike.%${query}%,channel.ilike.%${query}%`)
+    .order('view_count', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Supabase error:", error);
+    throw new Error(`Database query failed: ${error.message}`);
   }
+
+  console.log(`✅ Found ${data.length} videos`);
   
-  const data = await response.json();
+  return data.map(v => ({
+    title: v.title,
+    url: v.url,
+    channel_title: v.channel,
+    published_date: v.published_date,
+    sport: v.sport,
+    views: v.view_count,
+    duration: v.duration
+  }));
+}
+
+async function getVideosBySport(sport, limit = 10) {
+  console.log("🏈 Getting videos for sport:", sport);
   
-  // Return top N results
-  return data.slice(0, limit);
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .ilike('sport', sport)
+    .order('published_date', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`Database query failed: ${error.message}`);
+
+  return data.map(v => ({
+    title: v.title,
+    url: v.url,
+    channel_title: v.channel,
+    published_date: v.published_date,
+    sport: v.sport,
+    views: v.view_count,
+    duration: v.duration
+  }));
+}
+
+async function getRecentVideos(days = 30, sport = null, limit = 10) {
+  console.log(`📅 Getting videos from last ${days} days${sport ? ` (${sport})` : ''}`);
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffString = cutoffDate.toISOString().split('T')[0];
+
+  let query = supabase
+    .from('videos')
+    .select('*')
+    .gte('published_date', cutoffString)
+    .order('published_date', { ascending: false })
+    .limit(limit);
+
+  if (sport) {
+    query = query.ilike('sport', sport);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(`Database query failed: ${error.message}`);
+
+  return data.map(v => ({
+    title: v.title,
+    url: v.url,
+    channel_title: v.channel,
+    published_date: v.published_date,
+    sport: v.sport,
+    views: v.view_count,
+    duration: v.duration
+  }));
 }
 
 /* ============================================================
@@ -210,13 +343,21 @@ function formatVideoResults(videos, query) {
   let result = `Found ${videos.length} Oklahoma Sooners video${videos.length > 1 ? 's' : ''} for "${query}":\n\n`;
   
   videos.forEach((video, index) => {
-    const relevance = video.similarity ? Math.round(video.similarity * 100) : 'N/A';
     result += `${index + 1}. **${video.title}**\n`;
     result += `   📺 ${video.url}\n`;
     if (video.channel_title) {
-      result += `   📹 Channel: ${video.channel_title}\n`;
+      result += `   📹 ${video.channel_title}\n`;
     }
-    result += `   🎯 Relevance: ${relevance}%\n\n`;
+    if (video.sport) {
+      result += `   🏆 ${video.sport}\n`;
+    }
+    if (video.published_date) {
+      result += `   📅 ${video.published_date}\n`;
+    }
+    if (video.views) {
+      result += `   👁️ ${video.views.toLocaleString()} views\n`;
+    }
+    result += `\n`;
   });
   
   return result;
@@ -229,7 +370,8 @@ app.get("/health", (req, res) => {
   res.json({ 
     status: "ok", 
     service: "boomer-bot-video-search-mcp",
-    videos: "3915+",
+    videos: "4627",
+    supabase: SUPABASE_URL ? "connected" : "not configured",
     timestamp: new Date().toISOString()
   });
 });
@@ -253,6 +395,16 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Boomer Bot MCP Server running on port ${PORT}`);
-  console.log(`📹 Video Search API: ${VIDEO_SEARCH_API}`);
+  console.log(`🗄️ Supabase: ${SUPABASE_URL ? 'Connected ✅' : 'NOT CONFIGURED ❌'}`);
   console.log(`🔐 Auth: ${AUTH_SECRET ? 'Configured' : 'NOT SET - WARNING!'}`);
 });
+```
+
+---
+
+### 3. Add Environment Variables in Railway
+
+Go to your Railway project → **Variables** tab → Add:
+```
+SUPABASE_URL=https://hvqzrdlbtfezwuveincs.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cXpyZGxidGZlend1dmVpbmNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyOTA1MTgsImV4cCI6MjA3ODg2NjUxOH0.30_fdpT1hu_m3zyf-8IywXWIozjIDnqv5RHs6T9hCTo

@@ -163,13 +163,14 @@ app.post("/mcp", async (req, res) => {
     });
   }
 });
-// --- Railway Keep-Alive Ping ---
-if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+// --- Railway Keep-Alive (guaranteed working) ---
+if (process.env.RAILWAY_SERVICE_WEB_URL) {
   setInterval(() => {
-    fetch(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}/health`)
+    fetch(`${process.env.RAILWAY_SERVICE_WEB_URL}/health`)
       .catch(() => {});
-  }, 45000); // ping every 45 seconds
+  }, 45000);
 }
+
 
 // ===== LISTEN =====
 const port = process.env.PORT || 8080;

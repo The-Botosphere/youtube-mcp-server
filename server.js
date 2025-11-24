@@ -46,70 +46,83 @@ console.log("🔧 Supabase configured:", SUPABASE_URL ? "✅" : "❌ MISSING!");
 /* ============================================================
    📦 MCP TOOLS - Boomer Bot Video Search
    ============================================================ */
-const tools = [
+// Clean, valid MCP tool definitions for your YouTube/Supabase server
+export const tools = [
   {
     name: "search_ou_videos",
-    description: "Search the Oklahoma Sooners video database for game highlights, player performances, memorable plays, and historic moments. Searches through 4,627+ curated OU videos.",
+    description:
+      "Search the Oklahoma Sooners video database for game highlights, player performances, memorable plays, and historic moments. Searches through 4,627+ curated OU videos.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { 
+        query: {
           type: "string",
-          description: "Search terms for OU videos (e.g., 'Dillon Gabriel touchdown', 'Red River Rivalry', 'Baker Mayfield highlights')"
+          description:
+            "Search terms for OU videos (e.g., 'Dillon Gabriel touchdown', 'Red River Rivalry', 'Baker Mayfield highlights')",
         },
-        limit: { 
+        limit: {
           type: "number",
-          description: "Maximum number of results to return (default: 5)",
-          default: 5
-        }
+          description:
+            "Maximum number of results to return (default: 10, max: 50)",
+          default: 10,
+        },
       },
-      required: ["query"]
-    }
+      required: ["query"],
+    },
   },
+
   {
     name: "get_videos_by_sport",
-    description: "Get Oklahoma Sooners videos filtered by sport (Football, Softball, Basketball, etc.)",
+    description:
+      "Get Oklahoma Sooners videos filtered by sport (Football, Softball, Basketball, etc.). Results are sorted by published date (newest first).",
     inputSchema: {
       type: "object",
       properties: {
         sport: {
           type: "string",
-          description: "Sport name (Football, Softball, Men's Basketball, Women's Basketball, Baseball, Gymnastics, Wrestling, Golf)"
+          description:
+            "Sport name (Football, Softball, Men's Basketball, Women's Basketball, Baseball, Gymnastics, Wrestling, Golf, etc.)",
         },
-        limit: {
-          type: "number",
-          description: "Maximum number of results (default: 10)",
-          default: 10
-        }
-      },
-      required: ["sport"]
-    }
-  },
-  {
-    name: "get_recent_videos",
-    description: "Get the most recently published Oklahoma Sooners videos, optionally filtered by sport",
-    inputSchema: {
-      type: "object",
-      properties: {
         days: {
           type: "number",
-          description: "Get videos from last N days (default: 30)",
-          default: 30
-        },
-        sport: {
-          type: "string",
-          description: "Optional: filter by sport (Football, Softball, etc.)"
+          description:
+            "Only include videos from the last N days (default: 30). Use 0 to ignore time filter.",
+          default: 30,
         },
         limit: {
           type: "number",
-          description: "Maximum results (default: 10)",
-          default: 10
-        }
-      }
-    }
-  }
-];
+          description:
+            "Maximum number of results to return (default: 10, max: 50)",
+          default: 10,
+        },
+      },
+      required: ["sport"],
+    },
+  },
 
+  {
+    name: "get_recent_videos",
+    description:
+      "Get the most recently published Oklahoma Sooners videos, optionally filtered by sport.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sport: {
+          type: "string",
+          description:
+            "Optional sport filter (Football, Softball, etc.). If omitted, return recent videos for all sports.",
+        },
+        limit: {
+          type: "number",
+          description:
+            "Maximum number of results to return (default: 10, max: 50).",
+          default: 10,
+        },
+      },
+      required: [],
+    },
+  },
+];
 /* ============================================================
    🔓 AUTH MIDDLEWARE
    ============================================================ */

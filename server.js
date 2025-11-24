@@ -1,99 +1,171 @@
 
-file:///app/server.js:180
-);
-^
-SyntaxError: Unexpected token ')'
-    at compileSourceTextModule (node:internal/modules/esm/utils:346:16)
-    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:107:18)
-    at #translate (node:internal/modules/esm/loader:546:20)
-    at afterLoad (node:internal/modules/esm/loader:596:29)
-    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
-    at #createModuleJob (node:internal/modules/esm/loader:624:36)
-    at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:25)
-> node server.js
-file:///app/server.js:180
-);
-^
-SyntaxError: Unexpected token ')'
-    at compileSourceTextModule (node:internal/modules/esm/utils:346:16)
-    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:107:18)
-    at #translate (node:internal/modules/esm/loader:546:20)
-    at afterLoad (node:internal/modules/esm/loader:596:29)
-    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
-    at #createModuleJob (node:internal/modules/esm/loader:624:36)
-    at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:25)
-Node.js v22.21.1
-npm warn config production Use `--omit=dev` instead.
-> youtube-mcp-server@1.0.0 start
-npm warn config production Use `--omit=dev` instead.
-> youtube-mcp-server@1.0.0 start
-> node server.js
-    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
-    at #createModuleJob (node:internal/modules/esm/loader:624:36)
-    at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:25)
-Node.js v22.21.1
-file:///app/server.js:180
-);
-^
-SyntaxError: Unexpected token ')'
-    at compileSourceTextModule (node:internal/modules/esm/utils:346:16)
-    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:107:18)
-    at #translate (node:internal/modules/esm/loader:546:20)
-    at afterLoad (node:internal/modules/esm/loader:596:29)
-npm warn config production Use `--omit=dev` instead.
-> youtube-mcp-server@1.0.0 start
-> node server.js
-file:///app/server.js:180
-);
-^
-SyntaxError: Unexpected token ')'
-    at compileSourceTextModule (node:internal/modules/esm/utils:346:16)
-    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:107:18)
-    at #translate (node:internal/modules/esm/loader:546:20)
-    at afterLoad (node:internal/modules/esm/loader:596:29)
-    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
-    at #createModuleJob (node:internal/modules/esm/loader:624:36)
-    at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:25)
-Node.js v22.21.1
-npm warn config production Use `--omit=dev` instead.
-> youtube-mcp-server@1.0.0 start
-> node server.js
-file:///app/server.js:180
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41)
-);
-^
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:25)
-SyntaxError: Unexpected token ')'
-    at compileSourceTextModule (node:internal/modules/esm/utils:346:16)
-    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:107:18)
-Node.js v22.21.1
-    at #translate (node:internal/modules/esm/loader:546:20)
-    at afterLoad (node:internal/modules/esm/loader:596:29)
-    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
-    at #createModuleJob (node:internal/modules/esm/loader:624:36)
-    at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
-SyntaxError: Unexpected token ')'
-Node.js v22.21.1
-    at compileSourceTextModule (node:internal/modules/esm/utils:346:16)
-    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:107:18)
-    at #translate (node:internal/modules/esm/loader:546:20)
-    at afterLoad (node:internal/modules/esm/loader:596:29)
-    at #createModuleJob (node:internal/modules/esm/loader:624:36)
-npm warn config production Use `--omit=dev` instead.
-    at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
-    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
-    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:664:25)
-> youtube-mcp-server@1.0.0 start
-> node server.js
-file:///app/server.js:180
-);
-^
+// server.js
+import express from "express";
+import "dotenv/config";
+import { parse } from "csv-parse/sync";
+import fetch from "node-fetch";
+import { tools } from "./tools.js";
+
+const app = express();
+app.use(express.json());
+
+// Replace with your published Google Sheets CSV URL:
+const CSV_URL = process.env.CSV_URL;
+
+// ============ CORS =============
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
+// ===== HEALTH CHECK =====
+app.get("/health", (req, res) => res.status(200).send("OK"));
+
+// ===== ROOT =====
+app.get("/", (req, res) => res.send("YouTube MCP (Sheets MVP) running"));
+
+// ===== Fetch + Parse CSV =====
+async function loadVideos() {
+  const response = await fetch(CSV_URL);
+  const csvText = await response.text();
+
+  const rows = parse(csvText, {
+    columns: true,
+    skip_empty_lines: true
+  });
+
+  // Transform rows into normalized video objects
+  return rows.map(row => {
+    const url = row.url?.trim() || "";
+    let youtube_id = "";
+
+    // Extract YouTube ID from full URL
+    if (url.includes("watch?v=")) {
+      youtube_id = url.split("watch?v=")[1].split("&")[0];
+    } else if (url.includes("youtu.be/")) {
+      youtube_id = url.split("youtu.be/")[1].split("?")[0];
+    }
+
+    const title = row["OU Sooners videos"]?.trim() || "";
+    const published_at = row["published date"] || "";
+    
+    // Tags from description (split by space, comma)
+    const description = row["description"] || "";
+    const tags = description
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return {
+      youtube_id,
+      title,
+      url,
+      published_at,
+      tags
+    };
+  });
+}
+
+// ===== SEARCH FUNCTIONS =====
+async function searchVideos({ query, limit = 10 }) {
+  const videos = await loadVideos();
+  const q = query.toLowerCase();
+
+  const results = videos.filter(v =>
+    v.title.toLowerCase().includes(q) ||
+    v.tags.some(tag => tag.includes(q))
+  );
+
+  return results.slice(0, limit);
+}
+
+async function recentVideos({ limit = 10 }) {
+  const videos = await loadVideos();
+
+  return videos
+    .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+    .slice(0, limit);
+}
+
+// Sports filtering (optional until you add a sport column)
+async function videosBySport({ sport, limit = 10 }) {
+  const videos = await loadVideos();
+
+  const results = videos.filter(v => 
+    v.tags.includes(sport.toLowerCase()) ||
+    v.title.toLowerCase().includes(sport.toLowerCase())
+  );
+
+  return results.slice(0, limit);
+}
+
+// ===== MCP ENDPOINT =====
+app.post("/mcp", async (req, res) => {
+  const { id, method, params } = req.body;
+
+  if (!id) return res.json({ jsonrpc: "2.0", result: null });
+
+  try {
+    if (method === "tools/list") {
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: { tools }
+      });
+    }
+
+    if (method === "tools/call") {
+      const { name, arguments: args = {} } = params;
+
+      let out;
+
+      if (name === "search_ou_videos") out = await searchVideos(args);
+      else if (name === "get_videos_by_sport") out = await videosBySport(args);
+      else if (name === "get_recent_videos") out = await recentVideos(args);
+      else {
+        return res.json({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32601, message: "Unknown tool" }
+        });
+      }
+
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "output_text",
+              text: JSON.stringify(out, null, 2)
+            }
+          ]
+        }
+      });
+    }
+
+    res.json({
+      jsonrpc: "2.0",
+      id,
+      error: { code: -32601, message: "Unknown method" }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.json({
+      jsonrpc: "2.0",
+      id,
+      error: { code: -32000, message: err.message }
+    });
+  }
+});
+
+// ===== LISTEN =====
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log("MCP YouTube (Sheets MVP) listening on " + port);
+});

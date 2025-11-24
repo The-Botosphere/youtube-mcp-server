@@ -160,8 +160,11 @@ app.post("/mcp", async (req, res) => {
 
 // --- Start Server ---
 const port = process.env.PORT || 8080;
-app.listen(port, () =>
-  console.log(`🚀 YouTube MCP listening on ${port}`)
+
+app.listen(port, () => {
+  console.log("YouTube MCP listening on port " + port);
+});
+
 
            // --- Keep-alive internal ping (Railway safe) ---
 setInterval(() => {

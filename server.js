@@ -171,3 +171,11 @@ app.listen(port, () => {
   console.log("MCP YouTube (Sheets MVP) listening on " + port);
 });
 
+  // --- Keep Alive Ping ---
+setInterval(() => {
+  fetch(`https://${process.env.RAILWAY_STATIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN}/health`)
+    .catch(() => {});
+}, 60000);
+
+
+

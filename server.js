@@ -398,13 +398,7 @@ app.listen(PORT, () => {
   console.log(`🗄️ Supabase: ${SUPABASE_URL ? 'Connected ✅' : 'NOT CONFIGURED ❌'}`);
   console.log(`🔐 Auth: ${AUTH_SECRET ? 'Configured' : 'NOT SET - WARNING!'}`);
 });
-```
 
----
 
-### 3. Add Environment Variables in Railway
 
-Go to your Railway project → **Variables** tab → Add:
-```
-SUPABASE_URL=https://hvqzrdlbtfezwuveincs.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2cXpyZGxidGZlend1dmVpbmNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyOTA1MTgsImV4cCI6MjA3ODg2NjUxOH0.30_fdpT1hu_m3zyf-8IywXWIozjIDnqv5RHs6T9hCTo
+
